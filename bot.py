@@ -29,7 +29,7 @@ import logging
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 
 from config import BOT_TOKEN, DEBUG
-from handlers import fallback, start
+from handlers import fallback, login_command, start
 
 logging.basicConfig(
     level=logging.DEBUG if DEBUG else logging.INFO,
@@ -44,6 +44,7 @@ def main() -> None:
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("login", login_command))
     app.add_handler(MessageHandler(filters.ALL, fallback))
 
     logger.info("Polling started. Press Ctrl+C to stop.")
