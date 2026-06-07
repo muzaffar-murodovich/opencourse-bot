@@ -33,7 +33,7 @@ async def confirm_auth(
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(DJANGO_API_URL, json=payload, headers=headers)
-            logger.debug("Django response: %s %s", response.status_code, response.text)
+            logger.debug("Django response: %s", response.status_code)
             return response.status_code
     except httpx.RequestError as exc:
         logger.error("Network error while contacting Django: %s", exc)
@@ -76,11 +76,7 @@ async def issue_code(
             response = await client.post(
                 DJANGO_ISSUE_CODE_URL, json=payload, headers=headers
             )
-            logger.debug(
-                "Django issue-code response: %s %s",
-                response.status_code,
-                response.text,
-            )
+            logger.debug("Django issue-code response: %s", response.status_code)
             if response.status_code == 200:
                 return 200, response.json().get("short_code")
             if response.status_code == 403:

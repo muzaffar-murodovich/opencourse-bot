@@ -4,7 +4,6 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from api import confirm_auth, issue_code
-from config import BOT_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +28,14 @@ async def _get_photo_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     """Return the first profile photo URL, or empty string if unavailable."""
     try:
         user = update.effective_user
+        if not user:
+            return ""
         photos = await user.get_profile_photos(limit=1)
         if not photos.photos:
             return ""
         file_id = photos.photos[0][-1].file_id  # highest resolution
         file = await context.bot.get_file(file_id)
-        return f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
+        return file.file_path if file.file_path.startswith("http") else ""
     except Exception as exc:
         logger.warning("Could not fetch profile photo: %s", exc)
         return ""
@@ -113,6 +114,8 @@ async def login_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle any non-command message."""
     try:
+        if not update.message:
+            return
         await update.message.reply_text(MSG_OTHER)
     except Exception as exc:
         logger.error("Unhandled error in fallback handler: %s", exc)
