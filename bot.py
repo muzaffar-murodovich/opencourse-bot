@@ -45,7 +45,7 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("login", login_command))
-    app.add_handler(MessageHandler(filters.ALL, fallback))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, fallback))
 
     logger.info("Polling started. Press Ctrl+C to stop.")
     app.run_polling(drop_pending_updates=True)
