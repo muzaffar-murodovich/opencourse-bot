@@ -38,6 +38,7 @@ quyidagini joylashtiring:
 ```
 start - Tizimga kirish (sayt orqali)
 login - Saytga kirish uchun kod olish
+help - Yordam
 ```
 
 Bu bir martalik qo'lda sozlash bosqichi — kodga taalluqli emas.
@@ -50,6 +51,16 @@ venv/bin/pip install -r requirements.txt
 venv/bin/python bot.py
 ```
 
+## Testlar va lint
+
+```bash
+venv/bin/pip install ruff pytest
+ruff check .
+pytest -q
+```
+
+Bular CI'da (har push va PR'da) avtomatik ishlaydi — pastga qarang.
+
 ## Deployment
 
 Polling rejimida, systemd unit orqali ishlaydi (`telegram-bot-ochiqkurs`).
@@ -57,12 +68,15 @@ To'liq systemd unit namunasi `bot.py` faylining boshidagi izohda keltirilgan.
 
 ### CI/CD (GitHub Actions)
 
-`master` ga push qilinganda `.github/workflows/deploy.yml` avtomatik deploy
-qiladi: serverga SSH orqali kiradi (`~/opencourse-bot`), `git reset --hard
-origin/master` qiladi, `requirements.txt` ni o'rnatadi, `telegram-bot-ochiqkurs`
-unitini qayta ishga tushiradi va botning `active` ekanini tekshiradi (polling
-rejimida HTTP yo'qligi uchun `systemctl is-active` orqali — crash-on-boot'ni
-ushlaydi).
+`.github/workflows/deploy.yml` ikki bosqichdan iborat:
+
+1. **test** (har push va PR'da) — `ruff` lint, smoke import va `pytest`.
+2. **deploy** (faqat `master` ga push'da, `test` muvaffaqiyatli o'tsagina) —
+   serverga SSH orqali kiradi (`~/opencourse-bot`), `git reset --hard
+   origin/master` qiladi, `requirements.txt` ni o'rnatadi,
+   `telegram-bot-ochiqkurs` unitini qayta ishga tushiradi va botning `active`
+   ekanini tekshiradi (polling rejimida HTTP yo'qligi uchun `systemctl
+   is-active` orqali — crash-on-boot'ni ushlaydi).
 
 Repo'da quyidagi **Actions secrets** sozlangan bo'lishi shart:
 

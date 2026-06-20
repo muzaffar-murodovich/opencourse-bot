@@ -22,6 +22,14 @@ MSG_OTHER = (
     "Saytga kirish uchun /login buyrug'ini yuboring — "
     "men sizga 6 ta raqamli kod beraman."
 )
+MSG_HELP = (
+    "Ochiq Kurs — kirish boti.\n\n"
+    "Buyruqlar:\n"
+    "/login — saytga kirish uchun 6 raqamli kod olish.\n"
+    "/start — sayt havolasi orqali kirishni tasdiqlash.\n"
+    "/help — shu yordam matni.\n\n"
+    "Kod 10 daqiqa amal qiladi va bir marta ishlatiladi."
+)
 
 
 async def _get_photo_url(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
@@ -71,6 +79,8 @@ def _format_code(code: str) -> str:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /start [token]. With a token, run the deep-link confirm flow."""
     try:
+        if not update.message:
+            return
         args = context.args
         if not args:
             await update.message.reply_text(MSG_START_NO_TOKEN)
@@ -86,6 +96,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def login_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /login — issue a 6-digit login code for the user to type on the website."""
     try:
+        if not update.message:
+            return
         user = update.effective_user
         photo_url = await _get_photo_url(update, context)
         status, code = await issue_code(
@@ -109,6 +121,16 @@ async def login_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except Exception as exc:
         logger.error("Unhandled error in /login handler: %s", exc)
         await update.message.reply_text(MSG_ERROR)
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /help — show available commands."""
+    try:
+        if not update.message:
+            return
+        await update.message.reply_text(MSG_HELP)
+    except Exception as exc:
+        logger.error("Unhandled error in /help handler: %s", exc)
 
 
 async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

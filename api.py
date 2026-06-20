@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import httpx
@@ -5,6 +6,42 @@ import httpx
 from config import BOT_SECRET, DJANGO_API_URL, DJANGO_ISSUE_CODE_URL
 
 logger = logging.getLogger(__name__)
+
+# Retry transient network failures a few times before giving up, so a brief
+# blip contacting Django (e.g. during its own restart/deploy) doesn't force the
+# user to re-send the command.
+MAX_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 0.5
+REQUEST_TIMEOUT = 10.0
+
+
+async def _post(url: str, payload: dict) -> httpx.Response | None:
+    """
+    POST to Django with the shared bot secret, retrying on network errors.
+
+    Returns the httpx.Response, or None if every attempt failed at the
+    network level (the caller maps None to a 0 status).
+    """
+    headers = {"X-Bot-Secret": BOT_SECRET}
+    last_exc: Exception | None = None
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+                return await client.post(url, json=payload, headers=headers)
+        except httpx.RequestError as exc:
+            last_exc = exc
+            logger.warning(
+                "Network error contacting Django (attempt %d/%d): %s",
+                attempt,
+                MAX_ATTEMPTS,
+                exc,
+            )
+            if attempt < MAX_ATTEMPTS:
+                await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
+
+    logger.error("Giving up after %d attempts: %s", MAX_ATTEMPTS, last_exc)
+    return None
 
 
 async def confirm_auth(
@@ -28,16 +65,13 @@ async def confirm_auth(
         "username": username,
         "photo_url": photo_url,
     }
-    headers = {"X-Bot-Secret": BOT_SECRET}
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(DJANGO_API_URL, json=payload, headers=headers)
-            logger.debug("Django response: %s", response.status_code)
-            return response.status_code
-    except httpx.RequestError as exc:
-        logger.error("Network error while contacting Django: %s", exc)
-        return 0
+        response = await _post(DJANGO_API_URL, payload)
+        if response is None:
+            return 0
+        logger.debug("Django response: %s", response.status_code)
+        return response.status_code
     except Exception as exc:
         logger.error("Unexpected error in confirm_auth: %s", exc)
         return 0
@@ -69,22 +103,17 @@ async def issue_code(
         "username": username,
         "photo_url": photo_url,
     }
-    headers = {"X-Bot-Secret": BOT_SECRET}
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
-                DJANGO_ISSUE_CODE_URL, json=payload, headers=headers
-            )
-            logger.debug("Django issue-code response: %s", response.status_code)
-            if response.status_code == 200:
-                return 200, response.json().get("short_code")
-            if response.status_code == 403:
-                logger.error("Bot secret rejected by issue-code endpoint")
-            return response.status_code, None
-    except httpx.RequestError as exc:
-        logger.error("Network error while contacting Django: %s", exc)
-        return 0, None
+        response = await _post(DJANGO_ISSUE_CODE_URL, payload)
+        if response is None:
+            return 0, None
+        logger.debug("Django issue-code response: %s", response.status_code)
+        if response.status_code == 200:
+            return 200, response.json().get("short_code")
+        if response.status_code == 403:
+            logger.error("Bot secret rejected by issue-code endpoint")
+        return response.status_code, None
     except Exception as exc:
         logger.error("Unexpected error in issue_code: %s", exc)
         return 0, None

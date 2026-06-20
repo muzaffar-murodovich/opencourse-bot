@@ -1,3 +1,5 @@
-python-telegram-bot[job-queue]==21.*
-httpx
-python-decouple
+# Pinned to the exact versions running in production for reproducible deploys.
+# The [job-queue] extra (APScheduler) was dropped — the bot uses no job queue.
+python-telegram-bot==21.11.1
+httpx==0.28.1
+python-decouple==3.8
