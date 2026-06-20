@@ -3,7 +3,12 @@ import logging
 
 import httpx
 
-from config import BOT_SECRET, DJANGO_API_URL, DJANGO_ISSUE_CODE_URL
+from config import (
+    BOT_SECRET,
+    DJANGO_API_URL,
+    DJANGO_BOT_START_URL,
+    DJANGO_ISSUE_CODE_URL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +47,38 @@ async def _post(url: str, payload: dict) -> httpx.Response | None:
 
     logger.error("Giving up after %d attempts: %s", MAX_ATTEMPTS, last_exc)
     return None
+
+
+async def report_start(
+    telegram_id: int,
+    chat_id: int | None,
+    first_name: str,
+    last_name: str,
+    username: str,
+    language_code: str,
+    has_token: bool,
+) -> None:
+    """
+    Best-effort, fire-and-forget telemetry: tell Django this user pressed /start.
+
+    Never raises and never retries — telemetry must not affect the /start UX or
+    delay the reply. Any failure is logged and swallowed.
+    """
+    payload = {
+        "telegram_id": telegram_id,
+        "chat_id": chat_id,
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username,
+        "language_code": language_code,
+        "has_token": has_token,
+    }
+    headers = {"X-Bot-Secret": BOT_SECRET}
+    try:
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+            await client.post(DJANGO_BOT_START_URL, json=payload, headers=headers)
+    except Exception as exc:
+        logger.warning("bot-start telemetry failed: %s", exc)
 
 
 async def confirm_auth(

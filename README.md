@@ -28,6 +28,7 @@ Botda ikkita kirish usuli bor:
 | `BOT_SECRET` | Django bilan baham ko'rilgan maxfiy kalit (`X-Bot-Secret`) |
 | `DJANGO_API_URL` | Auth tasdiqlash endpoint (`/api/auth/confirm/`) |
 | `DJANGO_ISSUE_CODE_URL` | Kod chiqarish endpoint (`/api/auth/issue-code/`) |
+| `DJANGO_BOT_START_URL` | `/start` telemetriya endpoint (`/api/telemetry/bot-start/`) |
 | `DEBUG` | `True` bo'lsa batafsil log |
 
 ## BotFather command list

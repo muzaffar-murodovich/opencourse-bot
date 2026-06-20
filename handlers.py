@@ -3,7 +3,7 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from api import confirm_auth, issue_code
+from api import confirm_auth, issue_code, report_start
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.message:
             return
         args = context.args
+
+        # Fire-and-forget: record that this user pressed /start (funnel +
+        # broadcast list). Scheduled as a background task so it never delays
+        # the reply; report_start swallows its own errors.
+        user = update.effective_user
+        if user:
+            context.application.create_task(
+                report_start(
+                    telegram_id=user.id,
+                    chat_id=update.effective_chat.id if update.effective_chat else None,
+                    first_name=user.first_name or "",
+                    last_name=user.last_name or "",
+                    username=user.username or "",
+                    language_code=user.language_code or "",
+                    has_token=bool(args),
+                )
+            )
+
         if not args:
             await update.message.reply_text(MSG_START_NO_TOKEN)
             return

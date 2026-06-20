@@ -57,3 +57,12 @@ def test_issue_code_network_error_returns_zero_none(monkeypatch):
     status, code = asyncio.run(api.issue_code(1, "f", "l", "u", ""))
     assert status == 0
     assert code is None
+
+
+def test_report_start_swallows_network_errors(monkeypatch):
+    # Telemetry is best-effort: a network failure must never raise.
+    monkeypatch.setattr(api.httpx, "AsyncClient", _FailingClient)
+    result = asyncio.run(
+        api.report_start(1, 1, "f", "l", "u", "uz", has_token=True)
+    )
+    assert result is None
