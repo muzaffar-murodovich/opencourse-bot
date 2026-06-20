@@ -1,0 +1,45 @@
+name: Deploy Ochiq Kurs Bot
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute remote ssh commands using ssh key
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -euo pipefail
+            cd ~/opencourse-bot
+            # git reset --hard (not pull) survives untracked-file collisions and
+            # never leaves the tree on a merge conflict.
+            git fetch origin master
+            git reset --hard origin/master
+            source venv/bin/activate
+            pip install -r requirements.txt --quiet
+            sudo /usr/bin/systemctl restart telegram-bot-ochiqkurs
+            # Health check: the bot runs in polling mode (no HTTP endpoint to curl),
+            # so confirm systemd still reports it active a few seconds after the
+            # restart. This catches a crash-on-boot (bad token, syntax/import error)
+            # instead of reporting a green deploy on a dead bot.
+            sleep 3
+            ok=0
+            for i in $(seq 1 5); do
+              if systemctl is-active --quiet telegram-bot-ochiqkurs; then
+                ok=1; echo "Bot is active."; break
+              fi
+              echo "Health check attempt $i/5: not active yet"; sleep 2
+            done
+            if [ "$ok" != "1" ]; then
+              echo "Health check FAILED — bot is not active after restart."
+              sudo /usr/bin/systemctl status telegram-bot-ochiqkurs --no-pager || true
+              journalctl -u telegram-bot-ochiqkurs -n 40 --no-pager || true
+              exit 1
+            fi

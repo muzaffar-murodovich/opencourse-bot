@@ -54,3 +54,23 @@ venv/bin/python bot.py
 
 Polling rejimida, systemd unit orqali ishlaydi (`telegram-bot-ochiqkurs`).
 To'liq systemd unit namunasi `bot.py` faylining boshidagi izohda keltirilgan.
+
+### CI/CD (GitHub Actions)
+
+`master` ga push qilinganda `.github/workflows/deploy.yml` avtomatik deploy
+qiladi: serverga SSH orqali kiradi (`~/opencourse-bot`), `git reset --hard
+origin/master` qiladi, `requirements.txt` ni o'rnatadi, `telegram-bot-ochiqkurs`
+unitini qayta ishga tushiradi va botning `active` ekanini tekshiradi (polling
+rejimida HTTP yo'qligi uchun `systemctl is-active` orqali — crash-on-boot'ni
+ushlaydi).
+
+Repo'da quyidagi **Actions secrets** sozlangan bo'lishi shart:
+
+| Secret | Tavsif |
+|--------|--------|
+| `SERVER_IP` | Server IP manzili |
+| `SERVER_USER` | SSH foydalanuvchisi (`deploy`) |
+| `SSH_PRIVATE_KEY` | Serverga kirish uchun SSH maxfiy kaliti |
+
+Deploy `deploy` foydalanuvchisining `NOPASSWD` sudo ruxsatiga tayanadi:
+`systemctl restart/status telegram-bot-ochiqkurs`.

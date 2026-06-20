@@ -5,8 +5,8 @@ Ochiq Kurs Telegram Authentication Bot
 Deployment notes:
   - Run mode      : polling (not webhook)
   - Systemd unit  : telegram-bot-ochiqkurs
-  - Working dir   : /home/deploy/ochiqkurs-bot/
-  - Python venv   : /home/deploy/ochiqkurs-bot/venv/
+  - Working dir   : /home/deploy/opencourse-bot/
+  - Python venv   : /home/deploy/opencourse-bot/venv/
 
 Systemd service example (/etc/systemd/system/telegram-bot-ochiqkurs.service):
   [Unit]
@@ -15,8 +15,8 @@ Systemd service example (/etc/systemd/system/telegram-bot-ochiqkurs.service):
 
   [Service]
   User=deploy
-  WorkingDirectory=/home/deploy/ochiqkurs-bot
-  ExecStart=/home/deploy/ochiqkurs-bot/venv/bin/python bot.py
+  WorkingDirectory=/home/deploy/opencourse-bot
+  ExecStart=/home/deploy/opencourse-bot/venv/bin/python bot.py
   Restart=always
   RestartSec=5
 
