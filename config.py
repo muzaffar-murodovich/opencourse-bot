@@ -20,3 +20,12 @@ DJANGO_MARK_BLOCKED_URL: str = config(
 )
 BOT_SECRET: str = config("BOT_SECRET")
 DEBUG: bool = config("DEBUG", default=False, cast=bool)
+
+
+def _parse_ids(raw: str) -> set[int]:
+    """Parse a comma-separated list of telegram_ids into a set of ints."""
+    return {int(x) for x in raw.replace(" ", "").split(",") if x}
+
+
+# Telegram user IDs allowed to run /broadcast. Empty = broadcast disabled.
+ADMIN_IDS: set[int] = _parse_ids(config("ADMIN_IDS", default=""))

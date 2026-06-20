@@ -67,24 +67,43 @@ Bular CI'da (har push va PR'da) avtomatik ishlaydi — pastga qarang.
 ## Broadcast (e'lon yuborish)
 
 `/start` bosgan barcha foydalanuvchilarga (TelegramContact ro'yxati) bir martalik
-xabar yuborish uchun **serverda qo'lda** ishlatiladigan skript — CI deploy
-qismi emas, ataylab alohida (e'lon hammaga ketadi va qaytarib bo'lmaydi).
+xabar yuborish.
+
+### 1) `/broadcast` buyrug'i (asosiy usul)
+
+`ADMIN_IDS` ro'yxatidagi foydalanuvchi botga to'g'ridan-to'g'ri (telefondan ham)
+yozadi — shell-quoting muammosi yo'q:
+
+```
+Siz:  /broadcast
+Bot:  📣 Yubormoqchi bo'lgan e'lon matnini yuboring.
+Siz:  Yangi kurs chiqdi! ochiqkurs.uz
+Bot:  📊 142 ta foydalanuvchiga yuboriladi.
+      [ ✅ Tasdiqlash ]  [ ❌ Bekor ]
+Siz:  (Tasdiqlash)
+Bot:  ✅ Yuborildi: 138, xato: 2, bloklangan: 2
+```
+
+Ruxsat `ADMIN_IDS` (vergul bilan ajratilgan telegram_id'lar) orqali beriladi;
+bo'sh bo'lsa broadcast o'chiq. Bekor qilish: `/bekor`.
+
+### 2) `broadcast.py` skripti (serverdagi muqobil)
+
+Juda uzun matn yoki avtomatlashtirish uchun serverdan:
 
 ```bash
 cd ~/opencourse-bot
-# Avval nechta odamga ketishini ko'ring (hech narsa yuborilmaydi):
 venv/bin/python broadcast.py --dry-run "Yangi kurs chiqdi! ochiqkurs.uz"
-# Haqiqiy yuborish:
 venv/bin/python broadcast.py "Yangi kurs chiqdi! ochiqkurs.uz"
-# HTML formatlash bilan:
 venv/bin/python broadcast.py --html "<b>Yangilik!</b> ochiqkurs.uz"
+venv/bin/python broadcast.py --file xabar.txt   # quoting muammosini yo'qotadi
 ```
 
-Skript Telegram cheklovlariga amal qiladi (~25 xabar/sek, `429` bo'lsa
-`retry_after`ni kutadi), botni bloklagan foydalanuvchilarni Django'da
-`blocked=True` qilib belgilaydi (keyingi broadcast'lar ularni o'tkazib yuboradi),
-va oxirida `sent / failed / blocked` hisobotini chiqaradi. Skript polling
-servisidan mustaqil ishlaydi — bot ishlab turganda ham xavfsiz.
+Ikkala usul ham bitta umumiy mantiqdan (`broadcast_core.py`) foydalanadi va
+Telegram cheklovlariga amal qiladi (~25 xabar/sek, `429` bo'lsa `retry_after`ni
+kutadi), botni bloklaganlarni Django'da `blocked=True` qilib belgilaydi (keyingi
+broadcast'lar ularni o'tkazib yuboradi) va `sent / failed / blocked` hisobotini
+beradi.
 
 ## Deployment
 

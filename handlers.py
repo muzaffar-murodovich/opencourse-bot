@@ -1,11 +1,15 @@
 import logging
 
-from telegram import Update
-from telegram.ext import ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import ContextTypes, ConversationHandler
 
 from api import confirm_auth, issue_code, report_start
+from broadcast_core import fetch_contacts, run_broadcast
 
 logger = logging.getLogger(__name__)
+
+# Conversation states for the /broadcast flow.
+BC_AWAIT_MESSAGE, BC_CONFIRM = range(2)
 
 MSG_START_NO_TOKEN = (
     "Salom! Ochiq Kurs platformasiga xush kelibsiz.\n\n"
@@ -159,3 +163,85 @@ async def fallback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(MSG_OTHER)
     except Exception as exc:
         logger.error("Unhandled error in fallback handler: %s", exc)
+
+
+# ── /broadcast (admin only) ──────────────────────────────────────────────
+# Admin restriction is enforced by a filter on the entry point (see bot.py),
+# so these handlers only ever run for allowed users.
+
+async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Entry point: ask the admin for the message text."""
+    await update.message.reply_text(
+        "📣 Yubormoqchi bo'lgan e'lon matnini yuboring.\nBekor qilish: /bekor"
+    )
+    return BC_AWAIT_MESSAGE
+
+
+async def broadcast_receive(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Capture the message, show recipient count + a confirm/cancel keyboard."""
+    text = update.message.text
+    context.user_data["bc_text"] = text
+    try:
+        contacts = await fetch_contacts()
+    except Exception as exc:
+        logger.error("broadcast: could not fetch contacts: %s", exc)
+        await update.message.reply_text(MSG_ERROR)
+        return ConversationHandler.END
+
+    context.user_data["bc_contacts"] = contacts
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Tasdiqlash", callback_data="bc_confirm"),
+        InlineKeyboardButton("❌ Bekor", callback_data="bc_cancel"),
+    ]])
+    await update.message.reply_text(
+        f"📊 {len(contacts)} ta foydalanuvchiga yuboriladi.\n\nMatn:\n{text}",
+        reply_markup=keyboard,
+    )
+    return BC_CONFIRM
+
+
+async def broadcast_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Confirm button: send the broadcast as a background task, report the result."""
+    query = update.callback_query
+    await query.answer()
+    text = context.user_data.get("bc_text")
+    contacts = context.user_data.get("bc_contacts")
+    context.user_data.pop("bc_text", None)
+    context.user_data.pop("bc_contacts", None)
+    if not text:
+        await query.edit_message_text(MSG_ERROR)
+        return ConversationHandler.END
+
+    await query.edit_message_text("⏳ Yuborilmoqda...")
+    chat_id = query.message.chat_id
+    message_id = query.message.message_id
+
+    async def _run() -> None:
+        try:
+            r = await run_broadcast(context.bot, text, contacts=contacts)
+            await context.bot.edit_message_text(
+                chat_id=chat_id, message_id=message_id,
+                text=(f"✅ Yuborildi: {r['sent']}, xato: {r['failed']}, "
+                      f"bloklangan: {r['blocked']}"),
+            )
+        except Exception as exc:
+            logger.error("broadcast run failed: %s", exc)
+            await context.bot.edit_message_text(
+                chat_id=chat_id, message_id=message_id, text=MSG_ERROR,
+            )
+
+    # Run in the background so the bot keeps polling during a long send.
+    context.application.create_task(_run())
+    return ConversationHandler.END
+
+
+async def broadcast_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Cancel via the ❌ button or /bekor."""
+    context.user_data.pop("bc_text", None)
+    context.user_data.pop("bc_contacts", None)
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text("❌ Bekor qilindi.")
+    elif update.message:
+        await update.message.reply_text("❌ Bekor qilindi.")
+    return ConversationHandler.END
