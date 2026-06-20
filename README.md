@@ -29,6 +29,8 @@ Botda ikkita kirish usuli bor:
 | `DJANGO_API_URL` | Auth tasdiqlash endpoint (`/api/auth/confirm/`) |
 | `DJANGO_ISSUE_CODE_URL` | Kod chiqarish endpoint (`/api/auth/issue-code/`) |
 | `DJANGO_BOT_START_URL` | `/start` telemetriya endpoint (`/api/telemetry/bot-start/`) |
+| `DJANGO_CONTACTS_URL` | Broadcast ro'yxati endpoint (`/api/telemetry/contacts/`) |
+| `DJANGO_MARK_BLOCKED_URL` | Bloklaganlarni belgilash endpoint (`/api/telemetry/mark-blocked/`) |
 | `DEBUG` | `True` bo'lsa batafsil log |
 
 ## BotFather command list
@@ -61,6 +63,28 @@ pytest -q
 ```
 
 Bular CI'da (har push va PR'da) avtomatik ishlaydi — pastga qarang.
+
+## Broadcast (e'lon yuborish)
+
+`/start` bosgan barcha foydalanuvchilarga (TelegramContact ro'yxati) bir martalik
+xabar yuborish uchun **serverda qo'lda** ishlatiladigan skript — CI deploy
+qismi emas, ataylab alohida (e'lon hammaga ketadi va qaytarib bo'lmaydi).
+
+```bash
+cd ~/opencourse-bot
+# Avval nechta odamga ketishini ko'ring (hech narsa yuborilmaydi):
+venv/bin/python broadcast.py --dry-run "Yangi kurs chiqdi! ochiqkurs.uz"
+# Haqiqiy yuborish:
+venv/bin/python broadcast.py "Yangi kurs chiqdi! ochiqkurs.uz"
+# HTML formatlash bilan:
+venv/bin/python broadcast.py --html "<b>Yangilik!</b> ochiqkurs.uz"
+```
+
+Skript Telegram cheklovlariga amal qiladi (~25 xabar/sek, `429` bo'lsa
+`retry_after`ni kutadi), botni bloklagan foydalanuvchilarni Django'da
+`blocked=True` qilib belgilaydi (keyingi broadcast'lar ularni o'tkazib yuboradi),
+va oxirida `sent / failed / blocked` hisobotini chiqaradi. Skript polling
+servisidan mustaqil ishlaydi — bot ishlab turganda ham xavfsiz.
 
 ## Deployment
 

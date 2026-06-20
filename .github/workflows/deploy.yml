@@ -24,7 +24,7 @@ jobs:
         env:
           BOT_TOKEN: dummy
           BOT_SECRET: dummy
-        run: python -c "import bot, handlers, api, config"
+        run: python -c "import bot, handlers, api, config, broadcast"
       - name: Tests (pytest)
         run: pytest -q
 
